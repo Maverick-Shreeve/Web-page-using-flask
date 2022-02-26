@@ -1,8 +1,40 @@
-from flask import Blueprint
+from flask import Blueprint, render_template, flash , jsonify, request
+from flask_login import  login_required, current_user
+from .models import Note
+import json
+from . import db
 
 views = Blueprint('views', __name__)
 
-@views.route('/')
+#the @login makes sure user is logged in to access the route
+@views.route('/', methods=['GET', 'POST'])
+@login_required
 
 def home():
-    return "<h1>Test</h1>"
+    if request.method == 'POST':
+        note = request.form.get('note')
+        
+        if len (note) < 1:
+            flash('Note is too short!', category= 'error')
+        else:
+            new_note = Note(data=note, user_id=current_user.id)
+            db.session.add(new_note)
+            db.session.commit()
+            flash('note added!', category= 'success')
+            
+    #return our home file into views
+        return render_template("home.html", user=current_user)
+    
+  #for deleting user notes
+@views.route('/delete-note', methods=['POST'])
+def delete_note():
+    note = json.loads(request.data)
+    noteId = note['noteId']
+    note = Note.query.get(noteId)
+    #checks to make sure user is deleting their own note and not someone elses
+    if note:
+        if note.user_id == current_user.id:
+            db.session.delete(note)
+            db.session.commit()
+
+    return jsonify({})
